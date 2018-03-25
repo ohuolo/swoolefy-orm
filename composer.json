@@ -1,6 +1,6 @@
 {
-    "name": "topthink/think-orm",
-    "description": "think orm",
+    "name": "bingcool/swoolefy-orm",
+    "description": "think orm for swoolefy",
     "license": "Apache-2.0",
     "authors": [
         {
