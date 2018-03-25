@@ -49,13 +49,13 @@ abstract class Connection
     // 字段属性大小写
     protected $attrCase = PDO::CASE_LOWER;
     // 监听回调
-    protected static $event = [];
+    public static $event = [];
 
     // 数据表信息
-    protected static $info = [];
+    public static $info = [];
 
     // 数据库日志
-    protected static $log = [];
+    public static $log = [];
 
     // 使用Builder类
     protected $builderClassName;

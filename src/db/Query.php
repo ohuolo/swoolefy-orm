@@ -2919,4 +2919,16 @@ class Query
         return $result;
     }
 
+    /**
+     * clear 在请求完成后,清空静态变量
+     * @return void
+     */
+    public function clear() {
+        self::$event = [];
+        self::$extend = [];
+        Connection::$event = [];
+        Connection::$info = [];
+        Connection::$log = [];
+    }
+
 }
