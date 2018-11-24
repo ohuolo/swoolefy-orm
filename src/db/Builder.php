@@ -113,6 +113,10 @@ abstract class Builder
         $result = [];
 
         foreach ($data as $key => $val) {
+            if ('*' != $options['field'] && !in_array($key, $fields, true)) {
+                continue;
+            }
+
             $item = $this->parseKey($query, $key, true);
 
             if ($val instanceof Expression) {
@@ -170,9 +174,9 @@ abstract class Builder
             return $data->getValue();
         }
 
-        $query->bind($data, isset($bind[$key]) ? $bind[$key] : PDO::PARAM_STR);
+        $name = $query->bind($data, isset($bind[$key]) ? $bind[$key] : PDO::PARAM_STR);
 
-        return '?';
+        return ':' . $name;
     }
 
     /**
@@ -408,8 +412,8 @@ abstract class Builder
         }
 
         if (is_scalar($value) && !in_array($exp, ['EXP', 'NOT NULL', 'NULL', 'IN', 'NOT IN', 'BETWEEN', 'NOT BETWEEN']) && strpos($exp, 'TIME') === false) {
-            $query->bind($value, $bindType);
-            $value = '?';
+            $name  = $query->bind($value, $bindType);
+            $value = ':' . $name;
         }
 
         // 解析查询表达式
@@ -444,11 +448,9 @@ abstract class Builder
         // 模糊匹配
         if (is_array($value)) {
             foreach ($value as $item) {
-                $bind[]  = [$item, $bindType];
-                $array[] = $key . ' ' . $exp . ' ?';
+                $name    = $query->bind($item, $bindType);
+                $array[] = $key . ' ' . $exp . ' :' . $name;
             }
-
-            $query->bind($bind);
 
             $whereStr = '(' . implode($array, ' ' . strtoupper($logic) . ' ') . ')';
         } else {
@@ -531,12 +533,10 @@ abstract class Builder
         // BETWEEN 查询
         $data = is_array($value) ? $value : explode(',', $value);
 
-        $bind[] = [$data[0], $bindType];
-        $bind[] = [$data[1], $bindType];
+        $min = $query->bind($data[0], $bindType);
+        $max = $query->bind($data[1], $bindType);
 
-        $query->bind($bind);
-
-        return $key . ' ' . $exp . ' ? AND ? ';
+        return $key . ' ' . $exp . ' :' . $min . ' AND :' . $max . ' ';
     }
 
     /**
@@ -648,16 +648,14 @@ abstract class Builder
         } else {
             $value = array_unique(is_array($value) ? $value : explode(',', $value));
 
-            $bind  = [];
             $array = [];
 
             foreach ($value as $k => $v) {
-                $bind[]  = [$v, $bindType];
-                $array[] = '?';
+                $name    = $query->bind($v, $bindType);
+                $array[] = ':' . $name;
             }
 
             $zone = implode(',', $array);
-            $query->bind($bind);
 
             $value = empty($zone) ? "''" : $zone;
         }
@@ -725,9 +723,9 @@ abstract class Builder
             }
         }
 
-        $query->bind($value, $bindType);
+        $name = $query->bind($value, $bindType);
 
-        return '?';
+        return ':' . $name;
     }
 
     /**
