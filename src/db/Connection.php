@@ -23,7 +23,7 @@ use Swoolefy\Core\Coroutine\CoroutineManager;
 abstract class Connection
 {
     const PARAM_FLOAT          = 21;
-    protected static $instance = [];
+    public static $instance = [];
     /** @var PDOStatement PDO操作实例 */
     protected $PDOStatement;
 

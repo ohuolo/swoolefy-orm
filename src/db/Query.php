@@ -3601,7 +3601,7 @@ class Query
     public function clear() {
         $cid = CoroutineManager::getInstance()->getCoroutineId();
         unset(self::$event[$cid], self::$extend[$cid]);
-        unset(Connection::$event[$cid], Connection::$info[$cid], Connection::$log[$cid]);
+        unset(Connection::$event[$cid], Connection::$info[$cid], Connection::$log[$cid],Connection::$instance[$cid]);
     }
 
 }
