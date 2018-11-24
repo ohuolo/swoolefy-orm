@@ -18,6 +18,7 @@ use PDOStatement;
 use think\Db;
 use think\db\exception\BindParamException;
 use think\db\exception\PDOException;
+use Swoolefy\Core\Coroutine\CoroutineManager;
 
 abstract class Connection
 {
@@ -170,8 +171,9 @@ abstract class Connection
         if (false === $name) {
             $name = md5(serialize($config));
         }
-
-        if (true === $name || !isset(self::$instance[$name])) {
+        // 协程id
+        $coroutine_id = CoroutineManager::getInstance()->getCoroutineId();
+        if (true === $name || !isset(self::$instance[$coroutine_id][$name])) {
             // 解析连接参数 支持数组和字符串
             $options = self::parseConfig($config);
 
@@ -187,10 +189,10 @@ abstract class Connection
                 $name = md5(serialize($config));
             }
 
-            self::$instance[$name] = new $class($options);
+            self::$instance[$coroutine_id][$name] = new $class($options);
         }
 
-        return self::$instance[$name];
+        return self::$instance[$coroutine_id][$name];
     }
 
     /**
@@ -370,7 +372,8 @@ abstract class Connection
             $schema = $tableName;
         }
 
-        if (!isset(self::$info[$schema])) {
+        $cid = CoroutineManager::getInstance()->getCoroutineId();
+        if (!isset(self::$info[$cid][$schema])) {
             // 读取缓存
             $cacheFile = $this->config['schema_path'] . $schema . '.php';
             if (is_file($cacheFile)) {
@@ -398,10 +401,10 @@ abstract class Connection
                 $pk = null;
             }
 
-            self::$info[$schema] = ['fields' => $fields, 'type' => $type, 'bind' => $bind, 'pk' => $pk];
+            self::$info[$cid][$schema] = ['fields' => $fields, 'type' => $type, 'bind' => $bind, 'pk' => $pk];
         }
 
-        return $fetch ? self::$info[$schema][$fetch] : self::$info[$schema];
+        return $fetch ? self::$info[$cid][$schema][$fetch] : self::$info[$cid][$schema];
     }
 
     /**
@@ -1939,7 +1942,8 @@ abstract class Connection
      */
     public function listen($callback)
     {
-        self::$event[] = $callback;
+        $cid = CoroutineManager::getInstance()->getCoroutineId();
+        self::$event[$cid][] = $callback;
     }
 
     /**
@@ -1953,8 +1957,9 @@ abstract class Connection
      */
     protected function triggerSql($sql, $runtime, $explain = [], $master = false)
     {
-        if (!empty(self::$event)) {
-            foreach (self::$event as $callback) {
+        $cid = CoroutineManager::getInstance()->getCoroutineId();
+        if (!empty(self::$event[$cid])) {
+            foreach (self::$event[$cid] as $callback) {
                 if (is_callable($callback)) {
                     call_user_func_array($callback, [$sql, $runtime, $explain, $master]);
                 }
@@ -1978,12 +1983,14 @@ abstract class Connection
 
     public function log($log)
     {
-        $this->config['debug'] && self::$log[] = $log;
+        $cid = CoroutineManager::getInstance()->getCoroutineId();
+        $this->config['debug'] && self::$log[$cid][] = $log;
     }
 
     public function getSqlLog()
     {
-        return self::$log;
+        $cid = CoroutineManager::getInstance()->getCoroutineId();
+        return self::$log[$cid];
     }
 
     /**

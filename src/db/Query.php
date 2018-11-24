@@ -24,6 +24,7 @@ use think\Model;
 use think\model\Relation;
 use think\model\relation\OneToOne;
 use think\Paginator;
+use Swoolefy\Core\Coroutine\CoroutineManager;
 
 class Query
 {
@@ -3572,7 +3573,8 @@ class Query
      */
     public static function event($event, $callback)
     {
-        self::$event[$event] = $callback;
+        $cid = CoroutineManager::getInstance()->getCoroutineId();
+        self::$event[$cid][$event] = $callback;
     }
 
     /**
@@ -3583,9 +3585,10 @@ class Query
      */
     public function trigger($event)
     {
+        $cid = CoroutineManager::getInstance()->getCoroutineId();
         $result = false;
-        if (isset(self::$event[$event])) {
-            $result = call_user_func_array(self::$event[$event], [$this]);
+        if (isset(self::$event[$cid][$event])) {
+            $result = call_user_func_array(self::$event[$cid][$event], [$this]);
         }
 
         return $result;
@@ -3596,11 +3599,9 @@ class Query
      * @return void
      */
     public function clear() {
-        self::$event = [];
-        self::$extend = [];
-        Connection::$event = [];
-        Connection::$info = [];
-        Connection::$log = [];
+        $cid = CoroutineManager::getInstance()->getCoroutineId();
+        unset(self::$event[$cid], self::$extend[$cid]);
+        unset(Connection::$event[$cid], Connection::$info[$cid], Connection::$log[$cid]);
     }
 
 }
