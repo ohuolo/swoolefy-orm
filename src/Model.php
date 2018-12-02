@@ -12,6 +12,7 @@
 namespace think;
 
 use think\db\Query;
+use Swoolefy\Core\Coroutine\CoroutineManager;
 
 /**
  * Class Model
@@ -306,8 +307,9 @@ abstract class Model implements \JsonSerializable, \ArrayAccess
      */
     protected function initialize()
     {
-        if (!isset(static::$initialized[static::class])) {
-            static::$initialized[static::class] = true;
+        $cid = CoroutineManager::getInstance()->getCoroutineId();
+        if (!isset(static::$initialized[$cid][static::class])) {
+            static::$initialized[$cid][static::class] = true;
             static::init();
         }
     }
@@ -1042,5 +1044,11 @@ abstract class Model implements \JsonSerializable, \ArrayAccess
         $model = new static();
 
         return call_user_func_array([$model->db(), $method], $args);
+    }
+
+    public function __destruct()
+    {
+        $cid = CoroutineManager::getInstance()->getCoroutineId();
+        unset(self::$initialized[$cid], self::$event[$cid]);
     }
 }

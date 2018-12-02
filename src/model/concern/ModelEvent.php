@@ -12,7 +12,7 @@
 namespace think\model\concern;
 
 use think\Db;
-
+use Swoolefy\Core\Coroutine\CoroutineManager;
 /**
  * 模型事件处理
  */
@@ -50,12 +50,12 @@ trait ModelEvent
     public static function event($event, $callback, $override = false)
     {
         $class = static::class;
-
+        $cid = CoroutineManager::getInstance()->getCoroutineId();
         if ($override) {
-            self::$event[$class][$event] = [];
+            self::$event[$cid][$class][$event] = [];
         }
 
-        self::$event[$class][$event][] = $callback;
+        self::$event[$cid][$class][$event][] = $callback;
     }
 
     /**
@@ -65,7 +65,8 @@ trait ModelEvent
      */
     public static function flushEvent()
     {
-        self::$event[static::class] = [];
+        $cid = CoroutineManager::getInstance()->getCoroutineId();
+        self::$event[$cid][static::class] = [];
     }
 
     /**
@@ -106,9 +107,9 @@ trait ModelEvent
     protected function trigger($event)
     {
         $class = static::class;
-
-        if ($this->withEvent && isset(self::$event[$class][$event])) {
-            foreach (self::$event[$class][$event] as $callback) {
+        $cid = CoroutineManager::getInstance()->getCoroutineId();
+        if ($this->withEvent && isset(self::$event[$cid][$class][$event])) {
+            foreach (self::$event[$cid][$class][$event] as $callback) {
                 $result = call_user_func_array($callback, [$this]);
 
                 if (false === $result) {
