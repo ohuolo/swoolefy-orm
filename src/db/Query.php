@@ -3600,6 +3600,9 @@ class Query
      */
     public function clear() {
         $cid = CoroutineManager::getInstance()->getCoroutineId();
+        $this->connection->freeBuilder();
+        Db::$queryTimes = 0;
+        Db::$executeTimes = 0;
         unset(self::$event[$cid], self::$extend[$cid]);
         unset(Connection::$event[$cid], Connection::$info[$cid], Connection::$log[$cid],Connection::$instance[$cid]);
     }

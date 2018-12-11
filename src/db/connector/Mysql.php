@@ -206,4 +206,13 @@ class Mysql extends Connection
         $this->initConnect(true);
         $this->execute("XA ROLLBACK '$xid'");
     }
+
+    /**
+     * clearBuilder 必须要清空改builder对象
+     */
+    public function freeBuilder() {
+        if(is_object($this->builder)) {
+            unset($this->builder);
+        }
+    }
 }
