@@ -3595,10 +3595,10 @@ class Query
     }
 
     /**
-     * clear 在请求完成后,清空静态变量
+     * clear 在请求完成后,销毁对应协程静态变量
      * @return void
      */
-    public function clear() {
+    public function destroy() {
         $cid = CoroutineManager::getInstance()->getCoroutineId();
         $this->connection->freeBuilder();
         Db::$queryTimes = 0;
