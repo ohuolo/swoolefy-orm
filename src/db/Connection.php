@@ -1990,7 +1990,7 @@ abstract class Connection
     public function getSqlLog()
     {
         $cid = CoroutineManager::getInstance()->getCoroutineId();
-        return self::$log[$cid];
+        return isset(self::$log[$cid]) ? self::$log[$cid] : null;
     }
 
     /**
