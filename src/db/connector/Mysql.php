@@ -212,7 +212,7 @@ class Mysql extends Connection
      */
     public function freeBuilder() {
         if(is_object($this->builder)) {
-            unset($this->builder);
+            $this->builder = null;
         }
     }
 }
