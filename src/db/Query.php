@@ -623,9 +623,6 @@ class Query
             $result = (float) $result;
         }
 
-        // 查询完成后清空聚合字段信息
-        $this->removeOption('field');
-
         return $result;
     }
 
@@ -929,11 +926,13 @@ class Query
         if ($tableName) {
             // 添加统一的前缀
             $prefix = $prefix ?: $tableName;
-            foreach ($field as $key => $val) {
-                if (is_numeric($key)) {
-                    $val = $prefix . '.' . $val . ($alias ? ' AS ' . $alias . $val : '');
+            foreach ($field as $key => &$val) {
+                if (is_numeric($key) && $alias) {
+                    $field[$prefix . '.' . $val] = $alias . $val;
+                    unset($field[$key]);
+                } elseif (is_numeric($key)) {
+                    $val = $prefix . '.' . $val;
                 }
-                $field[$key] = $val;
             }
         }
 
@@ -3411,6 +3410,10 @@ class Query
      */
     protected function parseView(&$options)
     {
+        if (!isset($options['map'])) {
+            return;
+        }
+
         foreach (['AND', 'OR'] as $logic) {
             if (isset($options['where'][$logic])) {
                 foreach ($options['where'][$logic] as $key => $val) {
