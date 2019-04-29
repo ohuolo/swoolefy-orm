@@ -15,7 +15,9 @@ use Exception;
 use InvalidArgumentException;
 use PDO;
 use PDOStatement;
+use Swoolefy\Core\Swfy;
 use think\Db;
+use think\Pool;
 use think\db\exception\BindParamException;
 use think\db\exception\PDOException;
 use Swoolefy\Core\Coroutine\CoroutineManager;
@@ -475,7 +477,7 @@ abstract class Connection
     public function connect(array $config = [], $linkNum = 0, $autoConnection = false)
     {
         if (isset($this->links[$linkNum])) {
-            return $this->links[$linkNum];
+            return $this->links[$linkNum]['db'];
         }
 
         if (!$config) {
@@ -502,15 +504,23 @@ abstract class Connection
             if ($config['debug']) {
                 $startTime = microtime(true);
             }
-
-            $this->links[$linkNum] = new PDO($config['dsn'], $config['username'], $config['password'], $params);
+            $worker_id = Swfy::getCurrentWorkerId();
+            if($worker_id<0){
+                $this->links[$linkNum] = [];
+                $this->links[$linkNum]['conf'] = ['config'=>$config,'params'=>$params];
+                $this->links[$linkNum]['worker'] = 2;
+                $this->links[$linkNum]['db'] =  new PDO($config['dsn'], $config['username'], $config['password'], $params);
+            }
+            else{
+                $this->links[$linkNum]  = Pool::getInstance(['config'=>$config,'params'=>$params])->getConnection(5);
+            }
 
             if ($config['debug']) {
                 // 记录数据库连接信息
                 $this->log('[ DB ] CONNECT:[ UseTime:' . number_format(microtime(true) - $startTime, 6) . 's ] ' . $config['dsn']);
             }
 
-            return $this->links[$linkNum];
+            return $this->links[$linkNum]['db'];
         } catch (\PDOException $e) {
             if ($autoConnection) {
                 $this->log('[ ERR ] ' . $e->getMessage());
@@ -658,19 +668,19 @@ abstract class Connection
             return $this->getResult($pdo, $procedure);
         } catch (\PDOException $e) {
             if ($this->isBreak($e)) {
-                return $this->close()->query($sql, $bind, $master, $pdo);
+                return $this->close(true)->query($sql, $bind, $master, $pdo);
             }
 
             throw new PDOException($e, $this->config, $this->getLastsql());
         } catch (\Throwable $e) {
             if ($this->isBreak($e)) {
-                return $this->close()->query($sql, $bind, $master, $pdo);
+                return $this->close(true)->query($sql, $bind, $master, $pdo);
             }
 
             throw $e;
         } catch (\Exception $e) {
             if ($this->isBreak($e)) {
-                return $this->close()->query($sql, $bind, $master, $pdo);
+                return $this->close(true)->query($sql, $bind, $master, $pdo);
             }
 
             throw $e;
@@ -734,19 +744,19 @@ abstract class Connection
             return $this->numRows;
         } catch (\PDOException $e) {
             if ($this->isBreak($e)) {
-                return $this->close()->execute($sql, $bind, $query);
+                return $this->close(true)->execute($sql, $bind, $query);
             }
 
             throw new PDOException($e, $this->config, $this->getLastsql());
         } catch (\Throwable $e) {
             if ($this->isBreak($e)) {
-                return $this->close()->execute($sql, $bind, $query);
+                return $this->close(true)->execute($sql, $bind, $query);
             }
 
             throw $e;
         } catch (\Exception $e) {
             if ($this->isBreak($e)) {
-                return $this->close()->execute($sql, $bind, $query);
+                return $this->close(true)->execute($sql, $bind, $query);
             }
 
             throw $e;
@@ -1401,7 +1411,7 @@ abstract class Connection
      */
     public function aggregate(Query $query, $aggregate, $field)
     {
-        if (is_string($field) && 0 === stripos($field, 'DISTINCT ')) {
+        if (0 === stripos($field, 'DISTINCT ')) {
             list($distinct, $field) = explode(' ', $field);
         }
 
@@ -1459,8 +1469,8 @@ abstract class Connection
 
             // 判断占位符
             $sql = is_numeric($key) ?
-            substr_replace($sql, $value, strpos($sql, '?'), 1) :
-            str_replace(':' . $key, $value, $sql);
+                substr_replace($sql, $value, strpos($sql, '?'), 1) :
+                str_replace(':' . $key, $value, $sql);
         }
 
         return rtrim($sql);
@@ -1677,7 +1687,7 @@ abstract class Connection
         } catch (\Exception $e) {
             if ($this->isBreak($e)) {
                 --$this->transTimes;
-                return $this->close()->startTrans();
+                return $this->close(true)->startTrans();
             }
             throw $e;
         }
@@ -1807,11 +1817,22 @@ abstract class Connection
      * @access public
      * @return $this
      */
-    public function close()
+    public function close($reload=false)
     {
         $this->linkID    = null;
         $this->linkWrite = null;
         $this->linkRead  = null;
+        foreach ($this->links as $key=>$link){
+            if(!empty($link['worker'])){
+                unset($link['db']);
+            }
+            else if($reload){
+                Pool::getInstance($link['conf'])->gone(['last_used_time'=>time(),'db'=>$link['db']]);
+            }
+            else{
+                Pool::getInstance($link['conf'])->free(['last_used_time'=>time(),'db'=>$link['db']]);
+            }
+        }
         $this->links     = [];
 
         return $this;
@@ -1840,6 +1861,7 @@ abstract class Connection
             'SSL connection has been closed unexpectedly',
             'Error writing data to the connection',
             'Resource deadlock avoided',
+            'errno=32 Broken pipe'
         ];
 
         $error = $e->getMessage();
