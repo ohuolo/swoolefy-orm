@@ -3603,7 +3603,11 @@ class Query
      */
     public function destroy() {
         $cid = CoroutineManager::getInstance()->getCoroutineId();
-        $this->connection->freeBuilder();
+        if($this->connection){
+            $this->connection->freeBuilder();
+            $this->connection->free();
+            $this->connection->close();
+        }
         Db::$queryTimes = 0;
         Db::$executeTimes = 0;
         unset(self::$event[$cid], self::$extend[$cid]);

@@ -512,7 +512,14 @@ abstract class Connection
                 $this->links[$linkNum]['db'] =  new PDO($config['dsn'], $config['username'], $config['password'], $params);
             }
             else{
-                $this->links[$linkNum]  = Pool::getInstance(['config'=>$config,'params'=>$params])->getConnection(5);
+                $db =  Pool::getInstance(['config'=>$config,'params'=>$params])->getConnection(5);
+                if($db){
+                    $this->links[$linkNum]  = $db;
+                }
+                else{
+                    throw new \PDOException('');
+                }
+
             }
 
             if ($config['debug']) {
@@ -1861,7 +1868,8 @@ abstract class Connection
             'SSL connection has been closed unexpectedly',
             'Error writing data to the connection',
             'Resource deadlock avoided',
-            'errno=32 Broken pipe'
+            'errno=32 Broken pipe',
+            'Error while sending STMT_PREPARE packet'
         ];
 
         $error = $e->getMessage();
