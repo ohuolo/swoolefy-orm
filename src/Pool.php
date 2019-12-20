@@ -41,9 +41,9 @@ class Pool {
         $this->key = $key;
         $this->conf = $conf;
         $config = $conf['config'];
-        $this->min = isset($config['min'])&&config['min']>0?$config['min']:5;
-        $this->max = isset($config['max'])&&config['max']>0?$config['max']:20;
-        $this->spareTime = isset($config['spareTime'])&&config['spareTime']>0?$config['spareTime']:10 * 3600;
+        $this->min = isset($config['min'])&&$config['min']>0?$config['min']:5;
+        $this->max = isset($config['max'])&&$config['max']>0?$config['max']:20;
+        $this->spareTime = isset($config['spareTime'])&&$config['spareTime']>0?$config['spareTime']:10 * 3600;
         $this->connections = new Channel($this->max + 1);
     }
     public static function getInstance($conf) {
